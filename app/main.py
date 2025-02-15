@@ -163,7 +163,46 @@ def get_recent_logs():
 
     print(f"Wrote first lines of 10 most recent logs to {output_file}")
 
+#A6
+def build_docs_index():
+    """
+    - Finds all .md files in data/docs/
+    - Extracts the first line starting with '# ' as the title
+    - Saves a JSON mapping { "some-file.md": "Title", "folder/another-file.md": "Another Title" }
+      to data/docs/index.json
+    """
+    docs_dir = "data/docs"
+    output_path = os.path.join(docs_dir, "index.json")
 
+    # Dictionary for storing filename->title
+    index_map = {}
+
+    # Walk through docs_dir recursively
+    for root, dirs, files in os.walk(docs_dir):
+        for fname in files:
+            # Check if this is a .md file
+            if fname.lower().endswith(".md"):
+                full_path = os.path.join(root, fname)
+
+                # Compute the relative path, e.g. "subfolder/file.md"
+                rel_path = os.path.relpath(full_path, docs_dir).replace("\\", "/")
+
+                # Read the file and find the first line that starts with '# '
+                title = ""
+                with open(full_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("# "):
+                            title = line[2:].strip()  # remove '# ' and strip whitespace
+                            break
+
+                # Store the result in our index map
+                index_map[rel_path] = title
+
+    # Write the index map to data/docs/index.json
+    with open(output_path, "w", encoding="utf-8") as out:
+        json.dump(index_map, out, indent=2)
+
+    print(f"Documentation index written to {output_path}")
 
 @app.get("/")
 def root_endpoint():
@@ -247,6 +286,16 @@ def run_task(task: str, email: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
         
         return {"message": "A5 completed: logs-recent.txt has been written."}
+    
+    if "A6" in task.upper() or "index.json" in task.lower() or "docs" in task.lower():
+        try:
+            build_docs_index()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return {"message": "A6 completed: docs/index.json has been created"}
 
     # Default response
     return JSONResponse({"message": f"Received task: {task}"})
