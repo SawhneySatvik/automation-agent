@@ -5,6 +5,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse
 from dateutil import parser as date_parser
+import json
 
 app = FastAPI()
 
@@ -101,6 +102,27 @@ def count_wednesdays_in_dates():
 
     print(f"Found {wednesday_count} Wednesdays. Wrote result to {output_path}")
 
+def sort_contacts():
+    """
+    Reads data/contacts.json (a list of objects),
+    sorts by last_name then first_name,
+    writes the result to data/contacts-sorted.json.
+    """
+    input_path = "data/contacts.json"
+    output_path = "data/contacts-sorted.json"
+
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"File not found: {input_path}")
+
+    with open(input_path, "r", encoding="utf-8") as f:
+        contacts = json.load(f) 
+
+    sorted_contacts = sorted(contacts, key=lambda c: (c["last_name"], c["first_name"]))
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(sorted_contacts, f, indent=2)
+
+    print(f"Sorted contacts written to {output_path}.")
 
 @app.get("/")
 def root_endpoint():
@@ -164,8 +186,16 @@ def run_task(task: str, email: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
 
         return {"message": "A3 completed: dates-wednesdays.txt has been updated"}
+    
+    if "A4" in task.upper() or "contacts-sorted" in task.lower():
+        try:
+            sort_contacts()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+        return {"message": "A4 completed: contacts-sorted.json has been created"}
 
     # Default response
-    return JSONResponse({"message": f"Received task: {task}"})
-
     return JSONResponse({"message": f"Received task: {task}"})
