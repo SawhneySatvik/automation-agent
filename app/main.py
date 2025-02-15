@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-import pytesseract
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse
@@ -56,6 +55,8 @@ def extract_email_from_task(task_str: str) -> str:
         return match.group(0)
     return ""
 
+# Phase A
+
 # A1
 def run_datagen(user_email: str):
     """
@@ -79,16 +80,41 @@ def format_markdown_in_place():
     """
     Run `prettier@3.4.2` to format `/data/format.md` in-place.
     """
-    path = ensure_under_data_dir("/data/format.md")
+    local_data_path = os.path.join(os.getcwd(), "data")
+    file_path = os.path.join(local_data_path, "format.md")
+
+    if not os.path.exists(file_path):
+        raise Exception(f"File not found: {file_path}")
+
+    with open(file_path, "r") as f:
+        original_content = f.read()
+
     try:
-        subprocess.run(
-            ["npx", "prettier@3.4.2", "--write", path],
-            check=True
+        cmd = ["npx", "prettier@3.4.2", "--stdin-filepath", "/data/format.md"]
+
+        proc = subprocess.run(
+            cmd,
+            input=original_content,
+            capture_output=True,
+            text=True,  
+            check=True,
+            cwd=os.getcwd(),
+            env=os.environ.copy()
         )
+
+        formatted_content = proc.stdout
+
+        with open(file_path, "w") as f:
+            f.write(formatted_content)
+
+        return {"stdout": formatted_content, "stderr": proc.stderr}
+
     except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="npx not found. Please install Node.js and npm to run Prettier.")
+        raise Exception("npx not found. Please install Node.js and npm to run Prettier.") # or 
     except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Prettier formatting failed: {e}")
+        raise Exception(f"Prettier formatting failed: {e.stderr}") 
+    except Exception as e: 
+        raise Exception(f"An unexpected error occurred: {e}")
 
 # A3
 def count_wednesdays_in_dates():
@@ -165,30 +191,32 @@ def get_recent_logs():
 
 # A6
 def build_docs_index():
-    docs_dir = ensure_under_data_dir("/data/docs")
-    output_path = os.path.join(docs_dir, "index.json")
-    output_path = ensure_under_data_dir(output_path)
+    docs_dir = os.path.join(os.getcwd(), "data", "docs")
+    output_file = os.path.join(docs_dir, "index.json")
 
-    index_map = {}
-    for root, dirs, files in os.walk(docs_dir):
-        for fname in files:
-            if fname.lower().endswith(".md"):
-                full_path = os.path.join(root, fname)
-                full_path = os.path.abspath(full_path)
+    index = {}
 
-                rel_path = os.path.relpath(full_path, docs_dir).replace("\\", "/")
-                title = ""
-                with open(full_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        if line.startswith("# "):
-                            title = line[2:].strip()
-                            break
-                index_map[rel_path] = title
+    for root, _, files in os.walk(docs_dir):
+        for file in files:
+            if file.endswith(".md"):
+                file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(file_path, docs_dir)
 
-    with open(output_path, "w", encoding="utf-8") as out:
-        json.dump(index_map, out, indent=2)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            match = re.match(r"^# (.+)", line.strip())
+                            if match:
+                                index[relative_path] = match.group(1)
+                                break  
+                except Exception as e:
+                    index[relative_path] = f"Error reading file: {str(e)}"
 
-    print(f"Documentation index written to {output_path}")
+    # Write to index.json
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(index, f, indent=4)
+
+    return {"written_file": output_file, "index": index}
 
 def call_llm(prompt: str) -> str:
     token = os.environ.get("AIPROXY_TOKEN")
@@ -401,9 +429,7 @@ def calculate_gold_sales():
         f.write(str(gold_sum))
     print(f"Total Gold sales = {gold_sum}. Wrote to {output_path}.")
 
-###############################################################################
 # PHASE B: Security (B1/B2) and Business Tasks (B3–B10)
-###############################################################################
 
 # (B1) Data outside /data is never accessed or exfiltrated.
 #      We'll enforce this by wrapping any file path usage in a validator.
