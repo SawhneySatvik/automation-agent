@@ -8,31 +8,32 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
-    # Node.js (for `npx prettier` in Task A2) 
-    # We'll install it via apt or directly from NodeSource (here we use apt):
     nodejs \
     npm \
-    # For building python packages (if needed, e.g. if you have cryptography or pillow)
     build-essential \
     libffi-dev \
     libssl-dev \
-    # If you need tesseract-ocr or ffmpeg for optional tasks B8, etc., you can add them here
+    # If needed for OCR or audio tasks, you can uncomment:
     # tesseract-ocr \
     # ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Create a working directory inside the container
+# 2. Create a working directory for your app code
 WORKDIR /app
 
-# 3. Copy your code into the container
-# (assuming your Dockerfile is at the project root alongside your 'app/' folder, etc.)
+# 3. Copy your project files into /app
 COPY . /app
 
-# 4. Install Python dependencies (from your requirements.txt)
+# 4. Create a /data directory for storing generated files
+#    (Your code references absolute paths like /data/...)
+#    Also make it world-writable if you need to ensure runtime write access.
+RUN mkdir -p /data && chmod 777 /data
+
+# 5. Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Expose port 8000 for FastAPI
+# 6. Expose port 8000 (FastAPI default)
 EXPOSE 8000
 
-# 6. By default, run uvicorn on port 8000
+# 7. Run your app with uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
