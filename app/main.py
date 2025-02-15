@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse
 from dateutil import parser as date_parser
 import json
+import glob
 
 app = FastAPI()
 
@@ -29,6 +30,7 @@ def install_uv_if_needed():
             check=True
         )
 
+#A1
 def run_datagen(user_email: str):
     """
     Download and run datagen.py with the user_email as the only argument.
@@ -53,6 +55,7 @@ def run_datagen(user_email: str):
         check=True
     )
 
+#A2
 def format_markdown_in_place():
     """
     Run `prettier@3.4.2` to format `data/format.md` in-place.
@@ -75,7 +78,8 @@ def format_markdown_in_place():
             status_code=500,
             detail=f"Prettier formatting failed: {e}"
         )
-        
+
+#A3        
 def count_wednesdays_in_dates():
     input_path = "data/dates.txt"
     output_path = "data/dates-wednesdays.txt"
@@ -102,6 +106,7 @@ def count_wednesdays_in_dates():
 
     print(f"Found {wednesday_count} Wednesdays. Wrote result to {output_path}")
 
+#A4
 def sort_contacts():
     """
     Reads data/contacts.json (a list of objects),
@@ -123,6 +128,42 @@ def sort_contacts():
         json.dump(sorted_contacts, f, indent=2)
 
     print(f"Sorted contacts written to {output_path}.")
+
+#A5
+def get_recent_logs():
+    """
+    Finds the 10 most recently modified .log files in data/logs/ (descending order).
+    Extracts the first line of each, writes them to data/logs-recent.txt.
+    """
+    logs_dir = "data/logs"
+    output_file = "data/logs-recent.txt"
+
+    if not os.path.isdir(logs_dir):
+        raise FileNotFoundError(f"The directory '{logs_dir}' does not exist.")
+
+    pattern = os.path.join(logs_dir, "*.log")
+    log_files = glob.glob(pattern)
+    if not log_files:
+        with open(output_file, "w", encoding="utf-8") as out:
+            out.write("")
+        return 
+
+    log_files_sorted = sorted(log_files, key=os.path.getmtime, reverse=True)
+
+    top_10 = log_files_sorted[:10]
+
+    lines = []
+    for log_path in top_10:
+        with open(log_path, "r", encoding="utf-8") as f:
+            first_line = f.readline().rstrip("\n")
+            lines.append(first_line)
+
+    with open(output_file, "w", encoding="utf-8") as out:
+        out.write("\n".join(lines))
+
+    print(f"Wrote first lines of 10 most recent logs to {output_file}")
+
+
 
 @app.get("/")
 def root_endpoint():
@@ -196,6 +237,16 @@ def run_task(task: str, email: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
         
         return {"message": "A4 completed: contacts-sorted.json has been created"}
+    
+    if "A5" in task.upper() or "logs-recent" in task.lower():
+        try:
+            get_recent_logs()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+        return {"message": "A5 completed: logs-recent.txt has been written."}
 
     # Default response
     return JSONResponse({"message": f"Received task: {task}"})
