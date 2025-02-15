@@ -83,10 +83,31 @@ def root_endpoint():
 @app.get("/read")
 def read_file(path: str):
     """
-    Placeholder for GET /read?path=...
-    We'll implement actual file reading soon.
+    GET /read?path=<file path>
+    - Ensures the file is inside the 'data/' folder
+    - Returns its content as plain text
+    - If the file doesn't exist or is outside 'data/', returns 404
     """
-    return PlainTextResponse(f"Requesting file at path: {path}")
+
+    # 1. Convert relative path to an absolute path
+    requested_path = os.path.abspath(path)
+
+    # 2. Convert the data directory to an absolute path
+    data_dir = os.path.abspath("data")
+
+    # 3. Check if requested_path is within the data folder
+    if not requested_path.startswith(data_dir):
+        raise HTTPException(status_code=404, detail="File not found or not accessible.")
+
+    # 4. Check if the file exists
+    if not os.path.isfile(requested_path):
+        raise HTTPException(status_code=404, detail="File not found.")
+
+    # 5. Read and return the content
+    with open(requested_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return PlainTextResponse(content, media_type="text/plain")
 
 @app.post("/run")
 def run_task(task: str, email: str = ""):
