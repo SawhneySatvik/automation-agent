@@ -51,7 +51,30 @@ def run_datagen(user_email: str):
         [sys.executable, script_path, user_email],
         check=True
     )
-    
+
+def format_markdown_in_place():
+    """
+    Run `prettier@3.4.2` to format `data/format.md` in-place.
+    """
+    try:
+        # Example using npx:
+        subprocess.run(
+            ["npx", "prettier@3.4.2", "--write", "data/format.md"],
+            check=True
+        )
+    except FileNotFoundError:
+        # This likely means npx or node is not installed / not in PATH
+        raise HTTPException(
+            status_code=500,
+            detail="npx not found. Please install Node.js and npm to run Prettier."
+        )
+    except subprocess.CalledProcessError as e:
+        # Prettier command failed
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prettier formatting failed: {e}"
+        )
+        
 @app.get("/")
 def root_endpoint():
     """A quick test endpoint at GET /"""
@@ -83,5 +106,10 @@ def run_task(task: str, email: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
 
         return JSONResponse({"message": f"A1 completed successfully for {email}"})
+
+    if "A2" in task.lower() or "format.md" in task.lower():
+        # Call the function to do the formatting
+        format_markdown_in_place()
+        return {"message": "A2 completed: format.md has been prettified"}
 
     return JSONResponse({"message": f"Received task: {task}"})
