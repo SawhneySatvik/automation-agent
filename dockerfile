@@ -1,35 +1,38 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use an official Python base image
+FROM python:3.10-slim
 
-# Prevent Python from writing pyc files to disk and enable unbuffered logging
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Allow statements like RUN apt-get
+USER root
 
-# Install system dependencies (adjust if your project needs additional packages)
-RUN apt-get update && apt-get install -y \
+# 1. Install OS packages needed for Node.js, Git, etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    # Node.js (for `npx prettier` in Task A2) 
+    # We'll install it via apt or directly from NodeSource (here we use apt):
+    nodejs \
+    npm \
+    # For building python packages (if needed, e.g. if you have cryptography or pillow)
     build-essential \
-    libjpeg-dev \
-    zlib1g-dev \
+    libffi-dev \
+    libssl-dev \
+    # If you need tesseract-ocr or ffmpeg for optional tasks B8, etc., you can add them here
+    # tesseract-ocr \
+    # ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# 2. Create a working directory inside the container
 WORKDIR /app
 
-# Upgrade pip
-RUN pip install --upgrade pip
+# 3. Copy your code into the container
+# (assuming your Dockerfile is at the project root alongside your 'app/' folder, etc.)
+COPY . /app
 
-# Copy only the requirements file first to leverage Docker cache
-COPY requirements.txt .
-
-# Install Python dependencies
+# 4. Install Python dependencies (from your requirements.txt)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
-# (Files/folders excluded via .dockerignore won't be copied)
-COPY . .
-
-# Expose the port that uvicorn will run on
+# 5. Expose port 8000 for FastAPI
 EXPOSE 8000
 
-# Command to run the application with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 6. By default, run uvicorn on port 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
