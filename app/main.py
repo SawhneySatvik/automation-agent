@@ -7,8 +7,11 @@ from fastapi.responses import PlainTextResponse, JSONResponse
 from dateutil import parser as date_parser
 import json
 import glob
+import openai
+from dotenv import load_dotenv
 
 app = FastAPI()
+load_dotenv()  
 
 def install_uv_if_needed():
     """
@@ -204,6 +207,58 @@ def build_docs_index():
 
     print(f"Documentation index written to {output_path}")
 
+#Call LLM
+def call_llm(prompt: str) -> str:
+    """
+    Sends 'prompt' to GPT-4o-Mini via AI Proxy and returns the model's text response.
+    """
+    token = os.environ.get("AIPROXY_TOKEN")
+    if not token:
+        raise Exception("AIPROXY_TOKEN environment variable not set.")
+
+    openai.api_key = token
+    openai.api_base = "https://aiproxy.sanand.workers.dev/openai/v1"
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    raw_message = response["choices"][0]["message"]["content"]
+    return raw_message.strip()
+
+#A7
+def extract_sender_email():
+    input_path = "data/email.txt"
+    output_path = "data/email-sender.txt"
+
+    # 1. Read the email content
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"{input_path} not found.")
+
+    with open(input_path, "r", encoding="utf-8") as f:
+        email_content = f.read()
+
+    # 2. Call LLM with a short prompt
+    # Keep it simple and explicit so the LLM only responds with the email address
+    prompt = f"""Extract the sender's email address from this email content. 
+Output only the email address, nothing else:
+
+{email_content}
+"""
+    try:
+        llm_response = call_llm(prompt)
+    except RuntimeError as e:
+        raise RuntimeError(f"Error calling LLM: {e}")
+
+    # 3. Write the LLM response (assumed to be the email address) to output
+    with open(output_path, "w", encoding="utf-8") as out:
+        out.write(llm_response)
+
+    print(f"Sender email extracted to {output_path}: {llm_response}")
+
 @app.get("/")
 def root_endpoint():
     """A quick test endpoint at GET /"""
@@ -296,6 +351,16 @@ def run_task(task: str, email: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
 
         return {"message": "A6 completed: docs/index.json has been created"}
+    
+    if "A7" in task.upper() or "email-sender" in task.lower() or "sender’s email" in task.lower():
+        try:
+            extract_sender_email()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return {"message": "A7 completed: email-sender.txt has been created."}
 
     # Default response
     return JSONResponse({"message": f"Received task: {task}"})
