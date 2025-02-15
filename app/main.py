@@ -4,7 +4,7 @@ import subprocess
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse
-import uvicorn
+from dateutil import parser as date_parser
 
 app = FastAPI()
 
@@ -75,6 +75,33 @@ def format_markdown_in_place():
             detail=f"Prettier formatting failed: {e}"
         )
         
+def count_wednesdays_in_dates():
+    input_path = "data/dates.txt"
+    output_path = "data/dates-wednesdays.txt"
+
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    wednesday_count = 0
+
+    with open(input_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue 
+            try:
+                dt = date_parser.parse(line)
+                if dt.weekday() == 2:
+                    wednesday_count += 1
+            except Exception as e:
+                print(f"Warning: Could not parse date '{line}': {e}")
+
+    with open(output_path, "w", encoding="utf-8") as out:
+        out.write(str(wednesday_count))
+
+    print(f"Found {wednesday_count} Wednesdays. Wrote result to {output_path}")
+
+
 @app.get("/")
 def root_endpoint():
     """A quick test endpoint at GET /"""
@@ -89,21 +116,16 @@ def read_file(path: str):
     - If the file doesn't exist or is outside 'data/', returns 404
     """
 
-    # 1. Convert relative path to an absolute path
     requested_path = os.path.abspath(path)
 
-    # 2. Convert the data directory to an absolute path
     data_dir = os.path.abspath("data")
 
-    # 3. Check if requested_path is within the data folder
     if not requested_path.startswith(data_dir):
         raise HTTPException(status_code=404, detail="File not found or not accessible.")
 
-    # 4. Check if the file exists
     if not os.path.isfile(requested_path):
         raise HTTPException(status_code=404, detail="File not found.")
 
-    # 5. Read and return the content
     with open(requested_path, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -132,5 +154,18 @@ def run_task(task: str, email: str = ""):
         # Call the function to do the formatting
         format_markdown_in_place()
         return {"message": "A2 completed: format.md has been prettified"}
+    
+    if "A3" in task.lower() or "wednesday" in task.lower() or "dates-wednesdays.txt" in task.lower():
+        try:
+            count_wednesdays_in_dates()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return {"message": "A3 completed: dates-wednesdays.txt has been updated"}
+
+    # Default response
+    return JSONResponse({"message": f"Received task: {task}"})
 
     return JSONResponse({"message": f"Received task: {task}"})
