@@ -507,7 +507,7 @@ def run_task(task: str, email: str = ""):
     - If the task references A1 or 'datagen', run the A1 procedure.
     - Otherwise, just echo for now.
     """
-    if "A1" in task.lower() or "datagen" in task:
+    if "a1" in task.lower() or "datagen" in task:
         if not email:
             raise HTTPException(status_code=400, detail="Email is required to run datagen.py")
 
@@ -605,6 +605,5 @@ def run_task(task: str, email: str = ""):
 
         return {"message": "A10 completed: ticket-sales-gold.txt has been created"}
     
-
     # Default response
     return JSONResponse({"message": f"Received task: {task}"})
