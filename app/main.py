@@ -15,6 +15,7 @@ from PIL import Image
 from dotenv import load_dotenv
 import numpy as np
 from sentence_transformers import SentenceTransformer
+import sqlite3 
 
 app = FastAPI()
 load_dotenv()  
@@ -440,6 +441,36 @@ def find_most_similar_comments_local():
 
     print(f"Most similar pair found (local embeddings) with score={best_score}")
     print(f"Wrote them to {output_path}")
+   
+#A10 
+def calculate_gold_sales():
+    """
+    Connects to data/ticket-sales.db, queries SUM(units * price) where type='Gold',
+    writes the result to data/ticket-sales-gold.txt.
+    """
+    db_path = "data/ticket-sales.db"
+    output_path = "data/ticket-sales-gold.txt"
+
+    if not os.path.isfile(db_path):
+        raise FileNotFoundError(f"Database file not found: {db_path}")
+
+    # 1. Connect to the SQLite database
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # 2. Run the SUM query
+    cursor.execute("SELECT SUM(units * price) FROM tickets WHERE type = ?", ("Gold",))
+    result = cursor.fetchone()
+    conn.close()
+
+    # 3. Extract the sum (handle None if no rows)
+    gold_sum = result[0] if result[0] is not None else 0
+
+    # 4. Write the sum to data/ticket-sales-gold.txt
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(str(gold_sum))
+
+    print(f"Total Gold sales = {gold_sum}. Wrote to {output_path}.")
     
 @app.get("/")
 def root_endpoint():
@@ -476,7 +507,7 @@ def run_task(task: str, email: str = ""):
     - If the task references A1 or 'datagen', run the A1 procedure.
     - Otherwise, just echo for now.
     """
-    if "A1" in task or "datagen" in task:
+    if "A1" in task.lower() or "datagen" in task:
         if not email:
             raise HTTPException(status_code=400, detail="Email is required to run datagen.py")
 
@@ -563,6 +594,16 @@ def run_task(task: str, email: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
 
         return {"message": "A9 completed: most similar comments in comments-similar.txt"}
+    
+    if "A10" in task.upper() or "ticket-sales-gold" in task.lower():
+        try:
+            calculate_gold_sales()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return {"message": "A10 completed: ticket-sales-gold.txt has been created"}
     
 
     # Default response
