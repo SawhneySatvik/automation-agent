@@ -29,7 +29,7 @@ app.add_middleware(
 )
 
 
-def install_uv_if_needed():
+def intall_uv_if_needed():
     """
     Check if 'uv' is installed; if not, install it via pip.
     """
