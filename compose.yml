@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        AIPROXY_TOKEN: ${AIPROXY_TOKEN}
+    environment:
+      - AIPROXY_TOKEN=${AIPROXY_TOKEN}
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    networks:
+      - app-network-project1
+
+networks:
+  app-network-project1:
+    driver: bridge
