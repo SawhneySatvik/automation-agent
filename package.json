@@ -1,0 +1,22 @@
+{
+  "name": "automation-agent",
+  "version": "1.0.0",
+  "description": "Node packages for automation agent by 23f2003680 - Satvik Sawhney",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SawhneySatvik/automation-agent.git"
+  },
+  "author": "Satvik Sawhney",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SawhneySatvik/automation-agent/issues"
+  },
+  "homepage": "https://github.com/SawhneySatvik/automation-agent#readme",
+  "dependencies": {
+    "prettier": "^3.5.1"
+  }
+}
